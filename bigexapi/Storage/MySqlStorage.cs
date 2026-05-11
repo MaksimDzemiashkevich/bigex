@@ -19,8 +19,8 @@ public class MySqlStorage : IStorage
         mySqlConnection.Open();
 
         ChatRepository.CreateTableichat(mySqlConnection);
-        
-        if (ChatRepository.GetCountichat(mySqlConnection) == 0)
+        ChatRepository.CreateTableichatsandusers(mySqlConnection);
+        if (ChatRepository.GetCountichat(mySqlConnection, id) == 0)
         {
             return new List<AbstractChat>();
         }
@@ -28,7 +28,7 @@ public class MySqlStorage : IStorage
         {
             List<AbstractChat> chats = new List<AbstractChat>();
 
-
+            return chats;
         }
 
     }

@@ -4,5 +4,5 @@ namespace bigexapi.Storage;
 
 public interface IStorage
 {
-    List<AbstractChat> GetIChats();
+    List<AbstractChat> GetIChats(int id);
 }

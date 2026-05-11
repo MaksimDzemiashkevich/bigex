@@ -26,19 +26,19 @@ public static class ChatRepository
             ichatId int unsigned not null,
             role tinyint unsigned not null,
             foreign key (userId) references user(userId),
-            foreign key (ichatId) references ichat(ichatId));";
+            foreign key (ichatId) references ichat(ichatId),
+            unique key (ichatId, userId));";
     }
 
     public static int GetCountichat(MySqlConnection mySqlConnection, int id)
     {
         MySqlCommand command = mySqlConnection.CreateCommand();
-        command.CommandText = @"select count(*) from ichatsandusers where @userId = @dbUserId;";
+        command.CommandText = @"select count(*) from ichatsandusers where userId = @userId;";
         command.Parameters.AddWithValue("@userId", id);
-        command.Parameters.AddWithValue("@dbUserId", );
         return Convert.ToInt32(command.ExecuteScalar());
     }
 
-    public static void Getichat(MySqlConnection mySqlConnection)
+    public static void Getichats(MySqlConnection mySqlConnection)
     {
         MySqlCommand command = mySqlConnection.CreateCommand();
 

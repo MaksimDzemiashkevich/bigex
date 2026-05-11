@@ -2,6 +2,7 @@
 using bigexapi.Storage;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace bigexapi.Controllers;
 
@@ -17,6 +18,7 @@ public class IChatController : BaseController
     [HttpGet("ichats")]
     public List<AbstractChat> GetIChats()
     {
-        return _storage.GetIChats();
+        int userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+        return _storage.GetIChats(userId);
     }
 }
