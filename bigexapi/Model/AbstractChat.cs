@@ -9,5 +9,5 @@ public class AbstractChat
     public string ChannelUniqueName {  get; set; }
     public ChatType ChatType { get; set; }
     public string IchatMainImage {  get; set; }
-    public string ichatDescription { get; set; }
+    public string IchatDescription { get; set; }
 }

@@ -1,8 +1,12 @@
 ﻿using bigexapi.Model;
+using bigexapi.ModelDTO;
 
 namespace bigexapi.Storage;
 
 public interface IStorage
 {
     List<AbstractChat> GetIChats(int id);
+    public bool CreateUser(CreateUserData createUserData);
+    public int AuthUser(UserAuth userAuth);
+
 }

@@ -1,4 +1,5 @@
 ﻿using bigexapi.Model;
+using bigexapi.ModelDTO;
 using bigexapi.Repositories;
 using MySql.Data.MySqlClient;
 
@@ -30,6 +31,21 @@ public class MySqlStorage : IStorage
 
             return chats;
         }
+
+    }
+
+    public bool CreateUser(CreateUserData createUserData)
+    {
+        using MySqlConnection mySqlConnection = new MySqlConnection(_connectionString);
+        UserRepository.CreateTableUser(mySqlConnection);
+        return UserRepository.InsertUser(mySqlConnection, createUserData);
+    }
+
+    public int AuthUser(UserAuth userAuth)
+    {
+        using MySqlConnection mySqlConnection = new MySqlConnection(_connectionString);
+        UserRepository.CreateTableUser(mySqlConnection);
+        return UserRepository.CheckUser(mySqlConnection, userAuth);
 
     }
 }

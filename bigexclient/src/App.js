@@ -1,9 +1,12 @@
 import './App.css';
+import Application from './Layout/BigEx/Application';
 
 function App() {
   return (
     <div className="App">
-
+      <Application>
+        
+      </Application>
     </div>
   );
 }
