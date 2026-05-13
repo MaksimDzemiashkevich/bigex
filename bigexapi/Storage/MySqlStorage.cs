@@ -37,13 +37,19 @@ public class MySqlStorage : IStorage
     public bool CreateUser(CreateUserData createUserData)
     {
         using MySqlConnection mySqlConnection = new MySqlConnection(_connectionString);
+        mySqlConnection.Open();
         UserRepository.CreateTableUser(mySqlConnection);
+        if (UserRepository.CheckExistingUser(mySqlConnection, createUserData))
+        {
+            return false;
+        }
         return UserRepository.InsertUser(mySqlConnection, createUserData);
     }
 
     public int AuthUser(UserAuth userAuth)
     {
         using MySqlConnection mySqlConnection = new MySqlConnection(_connectionString);
+        mySqlConnection.Open();
         UserRepository.CreateTableUser(mySqlConnection);
         return UserRepository.CheckUser(mySqlConnection, userAuth);
 

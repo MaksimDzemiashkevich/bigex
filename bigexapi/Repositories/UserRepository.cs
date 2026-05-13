@@ -45,6 +45,19 @@ public static class UserRepository
         return chatsWithUser;
     }
 
+    public static bool CheckExistingUser(MySqlConnection mySqlConnection, CreateUserData createUserData)
+    {
+        using MySqlCommand command = mySqlConnection.CreateCommand();
+        command.CommandText = @"select userId from user where userEmail=@uEmail";
+        command.Parameters.AddWithValue("@uEmail", createUserData.UEmail);
+        using MySqlDataReader reader = command.ExecuteReader();
+        while(reader.Read())
+        {
+            return true;
+        }
+        return false;
+    }
+
     public static void CreateTableUser(MySqlConnection mySqlConnection)
     {
         using MySqlCommand command = mySqlConnection.CreateCommand();
@@ -73,7 +86,7 @@ public static class UserRepository
         command.Parameters.AddWithValue("@uName", createUserData.UName);
         command.Parameters.AddWithValue("@uEmail", createUserData.UEmail);
         command.Parameters.AddWithValue("@uPassword", createUserData.UPassword);
-        command.Parameters.AddWithValue("@uPublicId", guid);
+        command.Parameters.AddWithValue("@uPublicId", guid.ToByteArray());
         int result = command.ExecuteNonQuery();
         return result > 0;
     }

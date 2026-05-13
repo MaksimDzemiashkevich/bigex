@@ -10,7 +10,7 @@ using System.Security.Claims;
 
 namespace bigexapi.Controllers;
 
-[AllowAnonymous]
+//[AllowAnonymous]
 public class AuthController : BaseController
 {
     public IStorage mySqlStorage;

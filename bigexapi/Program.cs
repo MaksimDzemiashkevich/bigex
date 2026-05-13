@@ -7,16 +7,16 @@ using Microsoft.IdentityModel.Tokens;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddControllers(options =>
+builder.Services.AddControllers(/*options =>
 {
     AuthorizationPolicy policy = new AuthorizationPolicyBuilder()
                         .RequireAuthenticatedUser()
                         .Build();
     options.Filters.Add(new AuthorizeFilter(policy));
-});
+}*/);
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
-builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer(options =>
+/*builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer(options =>
 {
     options.TokenValidationParameters = new TokenValidationParameters()
     {
@@ -28,7 +28,12 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJw
         IssuerSigningKey = AuthOptions.GetSymmetricSecurityKey(builder.Configuration["JwtSettings:Key"]),
         ValidateIssuerSigningKey = true
     };
-});
+});*/
+builder.Services.AddCors(opt =>
+opt.AddPolicy("CorsPolicy", policy =>
+{
+    policy.AllowAnyMethod().AllowAnyHeader().WithOrigins(builder.Configuration["client"]);
+}));
 
 string connectionString = builder.Configuration.GetConnectionString("MySqlConnectionString");
 builder.Services.AddSingleton<IStorage>(new MySqlStorage(connectionString));
@@ -41,8 +46,9 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseAuthentication();
+//app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+app.UseCors("CorsPolicy");
 app.Run();
