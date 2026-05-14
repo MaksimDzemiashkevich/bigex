@@ -11,4 +11,6 @@ public interface IStorage
     public List<UserSearchDTO> SearchUsers(string query);
     public int GetUserIdByEmail(string email);
     public Guid CreatePrivateChatWithFirstMessage(int senderId, int recipientId, string messageText);
+    public void SendMessage(string chatPublicId, int senderId, string text);
+    UserSearchDTO? GetChatCompanion(string chatPublicId, int currentUserId);
 }

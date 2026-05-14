@@ -12,14 +12,9 @@ const Home = () => {
     useEffect(() => {
         const fetchChats = async () => {
             const userId = localStorage.getItem("userId");
-
-            if (!userId) {
-                navigate("/login");
-                return;
-            }
+            if (!userId) { navigate("/login"); return; }
 
             try {
-                // Передаем userId в query string
                 const response = await axios.get(`http://localhost:5000/api/IChat/ichats?userId=${userId}`);
                 setChats(response.data);
             } catch (err) {
@@ -28,7 +23,6 @@ const Home = () => {
                 setLoading(false);
             }
         };
-
         fetchChats();
     }, [navigate]);
 
@@ -42,7 +36,6 @@ const Home = () => {
         }
 
         try {
-            // Убрали headers с токеном, так как перешли на незащищенный поиск
             const response = await axios.get(`http://localhost:5000/api/IChat/search-users?query=${value}`);
             setSearchResults(response.data);
         } catch (err) {
@@ -53,15 +46,11 @@ const Home = () => {
     if (loading) return <div className="flex justify-center mt-10">Загрузка чатов...</div>;
 
     const startChat = (targetUser) => {
-        // Проверяем, есть ли уже чат с этим пользователем в списке текущих чатов
-        // (Для этого бэкенд должен возвращать информацию о собеседнике в списке чатов)
         const existingChat = chats.find(c => c.ichatName === targetUser.uName);
 
         if (existingChat) {
             navigate(`/chat/${existingChat.ichatPublicId}`);
         } else {
-            // Если чата нет, переходим на временный роут (или тот же), 
-            // но передаем данные пользователя в state
             navigate(`/chat/new`, {
                 state: {
                     isNew: true,
@@ -73,7 +62,6 @@ const Home = () => {
 
     return (
         <div className="max-w-2xl mx-auto py-8 px-4">
-            {/* БЛОК ПОИСКА */}
             <div className="relative mb-10">
                 <label className="block text-sm font-medium text-gray-700 mb-2">Найти новых людей</label>
                 <input
@@ -117,7 +105,6 @@ const Home = () => {
 
             <hr className="mb-8 border-gray-100" />
 
-            {/* СПИСОК ЧАТОВ */}
             <h1 className="text-2xl font-bold mb-6 text-gray-800">Ваши чаты</h1>
 
             {chats.length === 0 ? (
@@ -136,22 +123,19 @@ const Home = () => {
                                 {chat.ichatMainImage ? (
                                     <img src={chat.ichatMainImage} alt="Avatar" className="w-full h-full object-cover" />
                                 ) : (
-                                    chat.ichatName ? chat.ichatName[0].toUpperCase() : "?"
+                                    (chat.companionName || chat.ichatName || "?")[0].toUpperCase()
                                 )}
                             </div>
 
                             <div className="ml-4 flex-1">
                                 <div className="flex justify-between items-start">
                                     <h3 className="font-bold text-gray-900 group-hover:text-blue-600 transition-colors">
-                                        {chat.ichatName}
+                                        {chat.companionName || chat.ichatName}
                                     </h3>
                                     <span className="text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full uppercase font-bold tracking-tighter">
                                         {chat.chatType === 0 ? "Группа" : chat.chatType === 1 ? "Чат" : "Канал"}
                                     </span>
                                 </div>
-                                <p className="text-sm text-gray-500 truncate mt-1">
-                                    {chat.ichatDescription || "Оставьте первое сообщение..."}
-                                </p>
                             </div>
                         </div>
                     ))}

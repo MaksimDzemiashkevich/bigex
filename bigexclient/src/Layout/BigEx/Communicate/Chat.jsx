@@ -10,7 +10,46 @@ const Chat = () => {
     const [messages, setMessages] = useState([]);
     const [text, setText] = useState("");
     const [chatInfo, setChatInfo] = useState(location.state?.recipient || null);
-    const userId = localStorage.getItem("userId");
+    const [chatName, setChatName] = useState(
+        location.state?.recipient?.uName || location.state?.recipient?.UName || null
+    );
+    const userId = Number(localStorage.getItem("userId"));
+
+    useEffect(() => {
+        const fetchMessages = async () => {
+            if (id === "new") return;
+
+            try {
+                const response = await axios.get(`http://localhost:5000/api/IChat/messages?chatId=${id}`);
+                console.log("Данные сообщений с бэкенда:", response.data);
+
+                setMessages(response.data);
+            } catch (err) {
+                console.error("Ошибка загрузки сообщений:", err);
+            }
+        };
+
+        fetchMessages();
+
+        const interval = setInterval(fetchMessages, 3000);
+        return () => clearInterval(interval);
+    }, [id]);
+
+    useEffect(() => {
+        if (id === "new") return;
+
+        const fetchChatInfo = async () => {
+            try {
+                const response = await axios.get(
+                    `http://localhost:5000/api/IChat/chat-companion?chatId=${id}&userId=${userId}`
+                );
+                setChatName(response.data.uName || response.data.UName);
+            } catch (err) {
+                console.error("Ошибка загрузки собеседника:", err);
+            }
+        };
+        if (!chatName) fetchChatInfo();
+    }, [id]);
 
     const sendMessage = async (e) => {
         e.preventDefault();
@@ -18,18 +57,24 @@ const Chat = () => {
 
         try {
             if (id === "new" && location.state?.isNew) {
-                // ЛОГИКА ПЕРВОГО СООБЩЕНИЯ
+                const recipientEmail = chatInfo?.uEmail || chatInfo?.UEmail;
+
+                console.log("Отправка первого сообщения для нового чата...", {
+                    senderId: userId,
+                    recipientEmail: recipientEmail
+                });
+
                 const response = await axios.post("http://localhost:5000/api/IChat/create-and-send", {
                     senderId: userId,
-                    recipientEmail: chatInfo.uEmail,
+                    recipientEmail: recipientEmail,
                     messageText: text
                 });
 
-                // После создания чата бэкенд вернет новый ID чата
+                console.log("Ответ после создания чата:", response.data);
                 const newChatId = response.data.ichatPublicId;
                 navigate(`/chat/${newChatId}`, { replace: true });
             } else {
-                // Обычная отправка в существующий чат
+                console.log("Отправка сообщения в чат:", id);
                 await axios.post(`http://localhost:5000/api/IChat/message`, {
                     chatId: id,
                     senderId: userId,
@@ -37,7 +82,6 @@ const Chat = () => {
                 });
             }
             setText("");
-            // Тут логика обновления сообщений (через SignalR или повторный запрос)
         } catch (err) {
             console.error("Ошибка отправки:", err);
         }
@@ -45,32 +89,36 @@ const Chat = () => {
 
     return (
         <div className="flex flex-col h-[80vh] max-w-2xl mx-auto bg-white shadow-lg rounded-2xl overflow-hidden">
-            {/* Хедер чата */}
+            
             <div className="p-4 border-b bg-gray-50 flex items-center">
                 <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold">
-                    {chatInfo?.uName ? chatInfo.uName[0].toUpperCase() : "?"}
+                    {(chatName || "?")[0].toUpperCase()}
                 </div>
                 <div className="ml-3">
-                    <h2 className="font-bold">{chatInfo?.uName || "Загрузка..."}</h2>
-                    <p className="text-xs text-green-500">онлайн</p>
+                    <h2 className="font-bold">{chatName || "Загрузка..."}</h2>
+                    
                 </div>
             </div>
 
-            {/* Окно сообщений */}
             <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-100">
-                {messages.map((m, i) => (
-                    <div key={i} className={`flex ${m.senderId == userId ? "justify-end" : "justify-start"}`}>
-                        <div className={`p-3 rounded-2xl max-w-[80%] ${m.senderId == userId ? "bg-blue-600 text-white" : "bg-white text-gray-800 shadow-sm"}`}>
-                            {m.text}
+                {messages.map((m, i) => {
+                    if (i === 0) console.log("Пример объекта сообщения в массиве:", m);
+                    const msgText = m.text || m.Text;
+                    const msgSenderId = m.senderId || m.SenderId;
+
+                    return (
+                        <div key={i} className={`flex ${Number(msgSenderId) === userId ? "justify-end" : "justify-start"}`}>
+                            <div className={`p-3 rounded-2xl max-w-[80%] ${Number(msgSenderId) === userId ? "bg-blue-600 text-white" : "bg-white text-gray-800 shadow-sm"}`}>
+                                {msgText}
+                            </div>
                         </div>
-                    </div>
-                ))}
+                    );
+                })}
                 {id === "new" && messages.length === 0 && (
                     <p className="text-center text-gray-400 text-sm mt-10">Напишите что-нибудь, чтобы начать общение</p>
                 )}
             </div>
 
-            {/* Поле ввода */}
             <form onSubmit={sendMessage} className="p-4 border-t bg-white flex gap-2">
                 <input
                     type="text"
@@ -79,7 +127,7 @@ const Chat = () => {
                     placeholder="Ваше сообщение..."
                     className="flex-1 p-2 border rounded-xl outline-none focus:ring-2 focus:ring-blue-500"
                 />
-                <button className="bg-blue-600 text-white px-6 py-2 rounded-xl hover:bg-blue-700 transition">
+                <button type="submit" className="bg-blue-600 text-white px-6 py-2 rounded-xl hover:bg-blue-700 transition">
                     Отправить
                 </button>
             </form>

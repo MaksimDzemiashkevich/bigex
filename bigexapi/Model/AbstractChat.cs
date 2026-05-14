@@ -10,4 +10,5 @@ public class AbstractChat
     public ChatType ChatType { get; set; }
     public string IchatMainImage {  get; set; }
     public string IchatDescription { get; set; }
+    public string CompanionName { get; set; }
 }

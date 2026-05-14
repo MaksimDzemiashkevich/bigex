@@ -3,13 +3,12 @@ import { Outlet, Link, useNavigate } from "react-router-dom";
 
 const MainLayout = () => {
     const navigate = useNavigate();
-    // Проверяем userId вместо токена
     const userId = localStorage.getItem("userId");
 
     const handleLogout = () => {
         localStorage.clear();
         navigate("/login");
-        window.location.reload(); // Чтобы сбросить все стейты
+        window.location.reload();
     };
 
     return (

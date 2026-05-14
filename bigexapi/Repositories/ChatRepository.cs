@@ -41,15 +41,4 @@ public static class ChatRepository
         return Convert.ToInt32(command.ExecuteScalar());
     }
 
-//    public static List<AbstractChat> Getichats(MySqlConnection mySqlConnection)
-//    {
-//        using MySqlCommand command = mySqlConnection.CreateCommand();
-
-
-
-
-//        command.CommandText = @"select ichatPublicId, ichatName, channelUniqueName, chatType, ichatMainImage, ichatDescription
-//from ichat";
-//        return;
-//    }
 }

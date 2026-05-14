@@ -73,7 +73,6 @@ public class MySqlStorage : IStorage
         MessageRepository.CreateMessageTable(connection);
         try
         {
-            // 1. Создаем запись в ichat (согласно image_bd5e9e.png)
             Guid chatGuid = Guid.NewGuid();
             int chatId;
             using (var cmd = new MySqlCommand(@"
@@ -82,14 +81,10 @@ public class MySqlStorage : IStorage
             SELECT LAST_INSERT_ID();", connection, transaction))
             {
                 cmd.Parameters.AddWithValue("@pId", chatGuid.ToByteArray());
-                cmd.Parameters.AddWithValue("@name", "Личный чат"); // Можно передать имя собеседника
+                cmd.Parameters.AddWithValue("@name", "Личный чат");
                 chatId = Convert.ToInt32(cmd.ExecuteScalar());
             }
-
-            // 2. Связываем пользователей с чатом в ichatsandusers
             string linkSql = "INSERT INTO ichatsandusers (userId, ichatId, role) VALUES (@uId, @cId, @role);";
-
-            // Отправитель
             using (var cmd = new MySqlCommand(linkSql, connection, transaction))
             {
                 cmd.Parameters.AddWithValue("@uId", senderId);
@@ -97,8 +92,6 @@ public class MySqlStorage : IStorage
                 cmd.Parameters.AddWithValue("@role", 1);
                 cmd.ExecuteNonQuery();
             }
-
-            // Получатель (Добавляем только если это другой пользователь)
             if (senderId != recipientId)
             {
                 using (var cmd = new MySqlCommand(linkSql, connection, transaction))
@@ -109,8 +102,6 @@ public class MySqlStorage : IStorage
                     cmd.ExecuteNonQuery();
                 }
             }
-
-            // 3. Создаем первое сообщение в таблице message
             using (var cmd = new MySqlCommand(@"
             INSERT INTO message (userId, ichatId, messagePublicId, text, dateTimeSend, isRead, isDeleted) 
             VALUES (@uId, @cId, @mPId, @text, @date, 0, 0);", connection, transaction))
@@ -131,5 +122,89 @@ public class MySqlStorage : IStorage
             transaction.Rollback();
             throw;
         }
+    }
+
+    public static List<MessageDTO> GetMessagesByChatId(MySqlConnection mySqlConnection, string chatPublicId)
+    {
+        Guid guid = Guid.Parse(chatPublicId);
+        byte[] guidBytes = guid.ToByteArray();
+
+        using MySqlCommand command = mySqlConnection.CreateCommand();
+        command.CommandText = @"
+        SELECT m.text, m.userId AS senderId, m.dateTimeSend AS messageTimestamp
+        FROM message m
+        JOIN ichat c ON m.ichatId = c.ichatId
+        WHERE c.ichatPublicId = @chatPublicId
+        ORDER BY m.dateTimeSend ASC;";
+
+        command.Parameters.AddWithValue("@chatPublicId", guidBytes);
+
+        using MySqlDataReader reader = command.ExecuteReader();
+        List<MessageDTO> messages = new List<MessageDTO>();
+
+        while (reader.Read())
+        {
+            messages.Add(new MessageDTO
+            {
+                Text = reader.GetString("text"),
+                SenderId = reader.GetInt32("senderId"),
+                Timestamp = reader.GetDateTime("messageTimestamp")
+            });
+        }
+
+        return messages;
+    }
+
+    public void SendMessage(string chatPublicId, int senderId, string text)
+    {
+        using MySqlConnection connection = new MySqlConnection(_connectionString);
+        connection.Open();
+        int chatId;
+        using (var cmd = new MySqlCommand(
+            "SELECT ichatId FROM ichat WHERE ichatPublicId = @pId LIMIT 1;", connection))
+        {
+            cmd.Parameters.AddWithValue("@pId", Guid.Parse(chatPublicId).ToByteArray());
+            var result = cmd.ExecuteScalar();
+            if (result == null) throw new Exception("Чат не найден");
+            chatId = Convert.ToInt32(result);
+        }
+        using (var cmd = new MySqlCommand(@"
+        INSERT INTO message (userId, ichatId, messagePublicId, text, dateTimeSend, isRead, isDeleted)
+        VALUES (@userId, @chatId, @mPId, @text, @date, 0, 0);", connection))
+        {
+            cmd.Parameters.AddWithValue("@userId", senderId);
+            cmd.Parameters.AddWithValue("@chatId", chatId);
+            cmd.Parameters.AddWithValue("@mPId", Guid.NewGuid().ToByteArray());
+            cmd.Parameters.AddWithValue("@text", text);
+            cmd.Parameters.AddWithValue("@date", DateTime.Now);
+            cmd.ExecuteNonQuery();
+        }
+    }
+
+    public UserSearchDTO? GetChatCompanion(string chatPublicId, int currentUserId)
+    {
+        using MySqlConnection connection = new MySqlConnection(_connectionString);
+        connection.Open();
+
+        using var cmd = new MySqlCommand(@"
+        SELECT u.userId, u.userName AS uName, u.userEmail AS uEmail
+        FROM ichatsandusers icu
+        JOIN ichat c ON icu.ichatId = c.ichatId
+        JOIN user u ON icu.userId = u.userId
+        WHERE c.ichatPublicId = @chatPublicId
+          AND icu.userId != @currentUserId
+        LIMIT 1;", connection);
+
+        cmd.Parameters.AddWithValue("@chatPublicId", Guid.Parse(chatPublicId).ToByteArray());
+        cmd.Parameters.AddWithValue("@currentUserId", currentUserId);
+
+        using var reader = cmd.ExecuteReader();
+        if (!reader.Read()) return null;
+
+        return new UserSearchDTO
+        {
+            UName = reader.GetString("uName"),
+            UEmail = reader.GetString("uEmail")
+        };
     }
 }

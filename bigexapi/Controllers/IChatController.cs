@@ -2,6 +2,7 @@
 using bigexapi.ModelDTO;
 using bigexapi.Storage;
 using Microsoft.AspNetCore.Mvc;
+using MySql.Data.MySqlClient;
 
 namespace bigexapi.Controllers;
 
@@ -34,14 +35,10 @@ public class IChatController : ControllerBase
     [HttpPost("create-and-send")]
     public IActionResult CreateAndSend([FromBody] CreateChatRequest request)
     {
-        // 1. Ищем получателя в базе по Email через UserRepository
-        // (Метод поиска по email у тебя уже есть частично в CheckExistingUser)
         int recipientId = _storage.GetUserIdByEmail(request.RecipientEmail);
 
         if (recipientId == -1) return BadRequest("Пользователь не найден");
 
-        // 2. Создаем новый чат и сохраняем сообщение
-        // Возвращаем PublicId нового чата, чтобы фронт мог сделать редирект
         Guid newChatGuid = _storage.CreatePrivateChatWithFirstMessage(
             request.SenderId,
             recipientId,
@@ -49,5 +46,52 @@ public class IChatController : ControllerBase
         );
 
         return Ok(new { ichatPublicId = newChatGuid });
+    }
+
+    [HttpGet("messages")]
+    public IActionResult GetMessages([FromQuery] string chatId)
+    {
+        try
+        {
+            using (var connection = new MySqlConnection("server=localhost;port=3306;database=bigex;user=root;password=mongoFisher!;"))
+            {
+                connection.Open();
+                var messages = MySqlStorage.GetMessagesByChatId(connection, chatId);
+                return Ok(messages);
+            }
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    [HttpPost("message")]
+    public IActionResult SendMessage([FromBody] SendMessageRequest request)
+    {
+        try
+        {
+            _storage.SendMessage(request.ChatId, request.SenderId, request.Text);
+            return Ok();
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    [HttpGet("chat-companion")]
+    public IActionResult GetChatCompanion([FromQuery] string chatId, [FromQuery] int userId)
+    {
+        try
+        {
+            var companion = _storage.GetChatCompanion(chatId, userId);
+            if (companion == null) return NotFound();
+            return Ok(companion);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
     }
 }

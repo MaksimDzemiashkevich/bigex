@@ -10,11 +10,14 @@ public static class UserRepository
     public static List<AbstractChat> SearchichatsWithUser(MySqlConnection mySqlConnection, int id)
     {
         using MySqlCommand command = mySqlConnection.CreateCommand();
-        // Используем явное перечисление полей из ichat, чтобы не путаться в джойнах
         command.CommandText = @"
-        SELECT c.* FROM ichat c
-        JOIN ichatsandusers iu ON iu.ichatId = c.ichatId
-        WHERE iu.userId = @id;";
+    SELECT c.*,
+           companion.userName AS companionName
+    FROM ichat c
+    JOIN ichatsandusers iu ON iu.ichatId = c.ichatId
+    LEFT JOIN ichatsandusers iu2 ON iu2.ichatId = c.ichatId AND iu2.userId != @id
+    LEFT JOIN user companion ON companion.userId = iu2.userId
+    WHERE iu.userId = @id;";
 
         command.Parameters.AddWithValue("@id", id);
         using MySqlDataReader reader = command.ExecuteReader();
@@ -22,9 +25,8 @@ public static class UserRepository
         List<AbstractChat> chatsWithUser = new List<AbstractChat>();
         while (reader.Read())
         {
-            // Безопасно получаем тип чата
             byte typ = reader.IsDBNull(reader.GetOrdinal("chatType"))
-                       ? (byte)1 // По умолчанию личный чат
+                       ? (byte)1
                        : reader.GetByte("chatType");
 
             ChatType type = (ChatType)typ;
@@ -32,25 +34,23 @@ public static class UserRepository
             AbstractChat chat = type switch
             {
                 ChatType.Group => new Group(),
-                ChatType.PrivateChat => new bigexapi.Model.Chat(), // Уточни пространство имен, чтобы не путать с React-компонентом
+                ChatType.PrivateChat => new bigexapi.Model.Chat(),
                 ChatType.Channel => new Channel(),
                 _ => new bigexapi.Model.Chat()
             };
 
-            // Работа с GUID (BINARY(16))
             if (!reader.IsDBNull(reader.GetOrdinal("ichatPublicId")))
             {
                 byte[] guidBytes = (byte[])reader["ichatPublicId"];
                 chat.IchatPublicId = new Guid(guidBytes);
             }
 
-            // Безопасное чтение строк (если в базе NULL, запишется null или пустая строка)
             chat.IchatName = reader["ichatName"] as string ?? "Без названия";
             chat.IchatMainImage = reader["ichatMainImage"] as string ?? "";
 
-            // Поля, которые могут быть только у каналов/групп
             chat.ChannelUniqueName = reader["channelUniqueName"] as string;
             chat.IchatDescription = reader["ichatDescription"] as string;
+            chat.CompanionName = reader["companionName"] as string;
 
             chatsWithUser.Add(chat);
         }
@@ -124,7 +124,6 @@ public static class UserRepository
     public static List<UserSearchDTO> SearchUsers(MySqlConnection mySqlConnection, string query)
     {
         using MySqlCommand command = mySqlConnection.CreateCommand();
-        // Ищем частичное совпадение (LIKE) по имени или почте
         command.CommandText = @"SELECT userName, userEmail, userPublicId FROM user 
                             WHERE userName LIKE @query OR userEmail LIKE @query 
                             LIMIT 20;";
@@ -135,12 +134,10 @@ public static class UserRepository
 
         while (reader.Read())
         {
-            // Используем структуру UserAuth или создай новый DTO (UserSearchDTO)
             foundUsers.Add(new UserSearchDTO
             {
                 UName = reader.GetString("userName"),
                 UEmail = reader.GetString("userEmail")
-                // Если нужно, можно добавить PublicId в DTO
             });
         }
         return foundUsers;
