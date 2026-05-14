@@ -8,5 +8,7 @@ public interface IStorage
     List<AbstractChat> GetIChats(int id);
     public bool CreateUser(CreateUserData createUserData);
     public int AuthUser(UserAuth userAuth);
-
+    public List<UserSearchDTO> SearchUsers(string query);
+    public int GetUserIdByEmail(string email);
+    public Guid CreatePrivateChatWithFirstMessage(int senderId, int recipientId, string messageText);
 }

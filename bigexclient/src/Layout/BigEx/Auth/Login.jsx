@@ -22,17 +22,17 @@ const Login = () => {
         setLoading(true);
 
         try {
-            // Отправляем данные на твой эндпоинт /login
+            // Отправляем данные на бэкенд
             const response = await axios.post(`${process.env.REACT_APP_API_URL}/Auth/login`, formData);
 
-            // Если бэкенд вернул Ok с токеном
-            if (response.data && response.data.access_token) {
-                // Сохраняем токен и email в хранилище браузера
-                localStorage.setItem("token", response.data.access_token);
+            // Теперь бэкенд возвращает объект с userId и email (без токена)
+            if (response.data && response.data.userId) {
+                // Сохраняем ID пользователя и email
+                localStorage.setItem("userId", response.data.userId);
                 localStorage.setItem("userEmail", response.data.email);
 
                 alert("Вход выполнен успешно!");
-                navigate("/"); // Перенаправляем на главную или в чаты
+                navigate("/");
             }
         } catch (err) {
             if (err.response && err.response.status === 401) {

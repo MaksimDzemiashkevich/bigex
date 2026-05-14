@@ -10,35 +10,48 @@ public static class UserRepository
     public static List<AbstractChat> SearchichatsWithUser(MySqlConnection mySqlConnection, int id)
     {
         using MySqlCommand command = mySqlConnection.CreateCommand();
-        command.CommandText = @"select * from ichat 
-            join ichatsandusers on ichatsandusers.ichatId = ichat.ichatId
-            where userId = @id;";
+        // Используем явное перечисление полей из ichat, чтобы не путаться в джойнах
+        command.CommandText = @"
+        SELECT c.* FROM ichat c
+        JOIN ichatsandusers iu ON iu.ichatId = c.ichatId
+        WHERE iu.userId = @id;";
+
         command.Parameters.AddWithValue("@id", id);
         using MySqlDataReader reader = command.ExecuteReader();
 
         List<AbstractChat> chatsWithUser = new List<AbstractChat>();
         while (reader.Read())
         {
-            byte typ = reader.GetByte("chatType");
+            // Безопасно получаем тип чата
+            byte typ = reader.IsDBNull(reader.GetOrdinal("chatType"))
+                       ? (byte)1 // По умолчанию личный чат
+                       : reader.GetByte("chatType");
+
             ChatType type = (ChatType)typ;
 
             AbstractChat chat = type switch
             {
                 ChatType.Group => new Group(),
-                ChatType.PrivateChat => new Chat(),
-                ChatType.Channel => new Channel()
+                ChatType.PrivateChat => new bigexapi.Model.Chat(), // Уточни пространство имен, чтобы не путать с React-компонентом
+                ChatType.Channel => new Channel(),
+                _ => new bigexapi.Model.Chat()
             };
 
-            byte[] guidBytes = (byte[])reader["ichatPublicId"];
-            Guid userPublicId = new Guid(guidBytes);
+            // Работа с GUID (BINARY(16))
+            if (!reader.IsDBNull(reader.GetOrdinal("ichatPublicId")))
+            {
+                byte[] guidBytes = (byte[])reader["ichatPublicId"];
+                chat.IchatPublicId = new Guid(guidBytes);
+            }
 
-            chat.IchatPublicId = userPublicId;
-            chat.IchatName = reader.GetString("ichatName");
-            chat.ChannelUniqueName = reader.GetString("channelUniqueName");
+            // Безопасное чтение строк (если в базе NULL, запишется null или пустая строка)
+            chat.IchatName = reader["ichatName"] as string ?? "Без названия";
+            chat.IchatMainImage = reader["ichatMainImage"] as string ?? "";
 
+            // Поля, которые могут быть только у каналов/групп
+            chat.ChannelUniqueName = reader["channelUniqueName"] as string;
+            chat.IchatDescription = reader["ichatDescription"] as string;
 
-            chat.IchatMainImage = reader.GetString("ichatMainImage");
-            chat.IchatDescription = reader.GetString("ichatDescription");
             chatsWithUser.Add(chat);
         }
 
@@ -106,6 +119,31 @@ public static class UserRepository
             }
         }
         return -1;
+    }
+
+    public static List<UserSearchDTO> SearchUsers(MySqlConnection mySqlConnection, string query)
+    {
+        using MySqlCommand command = mySqlConnection.CreateCommand();
+        // Ищем частичное совпадение (LIKE) по имени или почте
+        command.CommandText = @"SELECT userName, userEmail, userPublicId FROM user 
+                            WHERE userName LIKE @query OR userEmail LIKE @query 
+                            LIMIT 20;";
+        command.Parameters.AddWithValue("@query", $"%{query}%");
+
+        using MySqlDataReader reader = command.ExecuteReader();
+        List<UserSearchDTO> foundUsers = new List<UserSearchDTO>();
+
+        while (reader.Read())
+        {
+            // Используем структуру UserAuth или создай новый DTO (UserSearchDTO)
+            foundUsers.Add(new UserSearchDTO
+            {
+                UName = reader.GetString("userName"),
+                UEmail = reader.GetString("userEmail")
+                // Если нужно, можно добавить PublicId в DTO
+            });
+        }
+        return foundUsers;
     }
 
 }

@@ -7,32 +7,54 @@ using Microsoft.IdentityModel.Tokens;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddControllers(/*options =>
-{
-    AuthorizationPolicy policy = new AuthorizationPolicyBuilder()
-                        .RequireAuthenticatedUser()
-                        .Build();
-    options.Filters.Add(new AuthorizeFilter(policy));
-}*/);
+builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
-/*builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer(options =>
+/*builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+.AddJwtBearer(options =>
 {
-    options.TokenValidationParameters = new TokenValidationParameters()
+    options.RequireHttpsMetadata = false;
+
+    options.TokenValidationParameters = new TokenValidationParameters
     {
         ValidateIssuer = true,
         ValidIssuer = AuthOptions.ISSUER,
+
         ValidateAudience = true,
         ValidAudience = AuthOptions.AUDIENCE,
+
         ValidateLifetime = true,
-        IssuerSigningKey = AuthOptions.GetSymmetricSecurityKey(builder.Configuration["JwtSettings:Key"]),
-        ValidateIssuerSigningKey = true
+
+        ValidateIssuerSigningKey = true,
+        IssuerSigningKey = AuthOptions.GetSymmetricSecurityKey(
+            builder.Configuration["JwtSettings:Key"])
+    };
+
+    options.Events = new JwtBearerEvents
+    {
+        OnMessageReceived = context =>
+        {
+            var authHeader = context.Request.Headers["Authorization"].ToString();
+
+            Console.WriteLine($"METHOD: {context.Request.Method}");
+            Console.WriteLine($"AUTH: {authHeader}");
+
+            if (string.IsNullOrWhiteSpace(authHeader))
+            {
+                context.NoResult();
+            }
+
+            return Task.CompletedTask;
+        }
     };
 });*/
+
 builder.Services.AddCors(opt =>
 opt.AddPolicy("CorsPolicy", policy =>
 {
-    policy.AllowAnyMethod().AllowAnyHeader().WithOrigins(builder.Configuration["client"]);
+    policy.AllowAnyOrigin()
+      .AllowAnyMethod()
+      .AllowAnyHeader();
 }));
 
 string connectionString = builder.Configuration.GetConnectionString("MySqlConnectionString");
@@ -45,10 +67,12 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+//app.UseRouting();
 
+app.UseCors("CorsPolicy");
 //app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
-app.UseCors("CorsPolicy");
+
 app.Run();
